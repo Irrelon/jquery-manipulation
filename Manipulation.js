@@ -35,74 +35,133 @@ var Manipulation = function () {
 
 	this._inform = [];
 	this._manipulationCopies = {};
-	this._manipulationMethods = [
-		'addClass',
-		'after',
-		'append',
-		'appendTo',
-		'attr',
-		'before',
-		'css',
-		'detach',
-		'empty',
-		'height',
-		'html',
-		'insertAfter',
-		'insertBefore',
-		'offset',
-		'prepend',
-		'prop',
-		'remove',
-		'removeAttr',
-		'removeClass',
-		'removeProp',
-		'replaceAll',
-		'replaceWith',
-		'text',
-		'toggleClass',
-		'unwrap',
-		'val',
-		'wrap',
-		'wrapAll',
-		'wrapInner'
-	];
+	this._manipulationMethods = {
+		'addClass': {},
+		'after': {},
+		'append': {},
+		'appendTo': {},
+		'attr': {
+			setOn: 1,
+			setViaObj: true
+		},
+		'before': {},
+		'css': {
+			setOn: 1,
+			setViaObj: true
+		},
+		'detach': {},
+		'empty': {},
+		'height': {},
+		'html': {
+			setOn: 0
+		},
+		'insertAfter': {},
+		'insertBefore': {},
+		'offset': {},
+		'prepend': {},
+		'prop': {
+			setOn: 1,
+			setViaObj: true
+		},
+		'remove': {},
+		'removeAttr': {},
+		'removeClass': {},
+		'removeProp': {},
+		'replaceAll': {},
+		'replaceWith': {},
+		'text': {
+			setOn: 0
+		},
+		'toggleClass': {},
+		'unwrap': {},
+		'val': {
+			setOn: 0
+		},
+		'wrap': {},
+		'wrapAll': {},
+		'wrapInner': {}
+	};
 
 	// Store existing manipulation methods so we can fire events
 	// when parts of the DOM are changed
-	for (arrIndex = 0; arrIndex < this._manipulationMethods.length; arrIndex++) {
-		arrItem = this._manipulationMethods[arrIndex];
+	for (arrIndex in this._manipulationMethods) {
+		if (this._manipulationMethods.hasOwnProperty(arrIndex)) {
+			arrItem = this._manipulationMethods[arrIndex];
 
-		// Store copy of original method
-		this._manipulationCopies[arrItem] = $.fn[arrItem];
+			// Store copy of original method
+			this._manipulationCopies[arrIndex] = $.fn[arrIndex];
 
-		// Now override the existing method with our own
-		$.fn[arrItem] = function (methodName) {
-			return function () {
-				return self._manipulate(this, methodName, arguments);
-			};
-		}(arrItem);
+			// Now override the existing method with our own
+			if (typeof(this['_' + arrIndex]) === 'function ') {
+				$.fn[arrIndex] = function (methodName) {
+					return function () {
+						return self['_' + methodName](this, methodName, arguments);
+					};
+				}(arrIndex);
+			} else {
+				// Use the generic manipulate method
+				$.fn[arrIndex] = function (methodName) {
+					return function () {
+						return self._manipulate(this, methodName, arguments);
+					};
+				}(arrIndex);
+			}
+		}
 	}
 };
 
 Manipulation.prototype._manipulate = function (context, method, args) {
-	var result = this._manipulationCopies[method].apply(context, args),
+	var methodOps = this._manipulationMethods[method],
+		getterArgs,
+		currentVal,
+		resultVal,
+		newVal,
 		rootElem = $(context),
 		informIndex,
 		inform;
 
-	// Check for at least one argument since you have to pass SOMETHING in order
-	// to change a value from one thing to another
-	if (args.length) {
-		for (informIndex = 0; informIndex < this._inform.length; informIndex++) {
-			inform = this._inform[informIndex];
+	// Check if a setter argument was passed
+	if (methodOps.setOn !== undefined) {
+		if (args[methodOps.setOn]) {
+			// Setter argument passed
+			getterArgs = Array.prototype.slice.call(args, 0, methodOps.setOn);
+			currentVal = this._manipulationCopies[method].apply(context, getterArgs);
 
-			if (rootElem.parents(inform).length) {
-				console.log('CHANGED');
+			// Now call the setter
+			resultVal = this._manipulationCopies[method].apply(context, args);
+
+			// Now call the getter again and record the new value
+			newVal = this._manipulationCopies[method].apply(context, getterArgs);
+		} else {
+			// Check if the method supports object-based setting
+			if (methodOps.setViaObj) {
+				// Check if args[0] exists and is an object
+				if (args[0] && typeof args[0] === 'object') {
+					// A setter object was passed so loop it
+
+				}
+			} else {
+				// No set via obj support, this call is a getter
+				return this._manipulationCopies[method].apply(context, args);
 			}
 		}
+
+		// Check if we have a value change
+		if (currentVal !== newVal) {
+			// Loop the inform listeners to see if any of their selectors are a parent of the affected element
+			for (informIndex = 0; informIndex < this._inform.length; informIndex++) {
+				inform = this._inform[informIndex];
+
+				if (rootElem.parents(inform).length) {
+					console.log('CHANGED via ' + method, getterArgs, currentVal, newVal);
+				}
+			}
+		}
+	} else {
+		return this._manipulationCopies[method].apply(context, args);
 	}
 
-	return result;
+	return resultVal;
 };
 
 Manipulation.prototype.escapeSelector = function (selector) {
@@ -110,5 +169,5 @@ Manipulation.prototype.escapeSelector = function (selector) {
 };
 
 Manipulation.prototype.inform = function (selectorString) {
-	this._inform.push(this.escapeSelector(selectorString));
+	this._inform.push(selectorString);
 };
