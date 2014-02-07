@@ -36,50 +36,102 @@ var Manipulation = function () {
 	this._inform = [];
 	this._manipulationCopies = {};
 	this._manipulationMethods = {
-		'addClass': {},
-		'after': {},
-		'append': {},
-		'appendTo': {},
+		'addClass': {
+			active: false
+		},
+		'after': {
+			active: false
+		},
+		'append': {
+			active: false
+		},
+		'appendTo': {
+			active: false
+		},
 		'attr': {
+			active: false,
 			setOn: 1,
 			setViaObj: true
 		},
-		'before': {},
+		'before': {
+			active: false
+		},
 		'css': {
+			active: false,
 			setOn: 1,
 			setViaObj: true
 		},
-		'detach': {},
-		'empty': {},
-		'height': {},
+		'detach': {
+			active: false
+		},
+		'empty': {
+			active: false
+		},
+		'height': {
+			active: false
+		},
 		'html': {
+			active: false,
 			setOn: 0
 		},
-		'insertAfter': {},
-		'insertBefore': {},
-		'offset': {},
-		'prepend': {},
+		'insertAfter': {
+			active: false
+		},
+		'insertBefore': {
+			active: false
+		},
+		'offset': {
+			active: false
+		},
+		'prepend': {
+			active: false
+		},
 		'prop': {
+			active: false,
 			setOn: 1,
 			setViaObj: true
 		},
-		'remove': {},
-		'removeAttr': {},
-		'removeClass': {},
-		'removeProp': {},
-		'replaceAll': {},
-		'replaceWith': {},
+		'remove': {
+			active: false
+		},
+		'removeAttr': {
+			active: false
+		},
+		'removeClass': {
+			active: false
+		},
+		'removeProp': {
+			active: false
+		},
+		'replaceAll': {
+			active: false
+		},
+		'replaceWith': {
+			active: false
+		},
 		'text': {
+			active: false,
 			setOn: 0
 		},
-		'toggleClass': {},
-		'unwrap': {},
+		'toggleClass': {
+			active: false
+		},
+		'unwrap': {
+			active: false
+		},
 		'val': {
+			active: false,
 			setOn: 0
 		},
-		'wrap': {},
-		'wrapAll': {},
-		'wrapInner': {}
+		'wrap': {
+			active: false
+		},
+		'wrapAll': {
+			active: false
+		},
+		'wrapInner': {
+			active: false
+		}
 	};
 
 	// Store existing manipulation methods so we can fire events
@@ -168,6 +220,6 @@ Manipulation.prototype.escapeSelector = function (selector) {
 	return selector.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|\/@])/g, '\\$1');
 };
 
-Manipulation.prototype.inform = function (selectorString) {
+Manipulation.prototype.inform = function (selectorString, types) {
 	this._inform.push(selectorString);
 };
