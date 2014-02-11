@@ -33,104 +33,97 @@ var Manipulation = function () {
 		arrIndex,
 		arrItem;
 
-	this._inform = [];
 	this._manipulationCopies = {};
 	this._manipulationMethods = {
 		'addClass': {
-			active: false
+
 		},
 		'after': {
-			active: false
+
 		},
 		'append': {
-			active: false
+
 		},
 		'appendTo': {
-			active: false
+
 		},
 		'attr': {
-			active: false,
 			setOn: 1,
 			setViaObj: true
 		},
 		'before': {
-			active: false
+
 		},
 		'css': {
-			active: false,
 			setOn: 1,
 			setViaObj: true
 		},
 		'detach': {
-			active: false
+
 		},
 		'empty': {
-			active: false
+
 		},
 		'height': {
-			active: false
+
 		},
 		'html': {
-			active: false,
 			setOn: 0
 		},
 		'insertAfter': {
-			active: false
+
 		},
 		'insertBefore': {
-			active: false
+
 		},
 		'offset': {
-			active: false
+
 		},
 		'prepend': {
-			active: false
+
 		},
 		'prop': {
-			active: false,
 			setOn: 1,
 			setViaObj: true
 		},
 		'remove': {
-			active: false
+
 		},
 		'removeAttr': {
-			active: false
+
 		},
 		'removeClass': {
-			active: false
+
 		},
 		'removeProp': {
-			active: false
+
 		},
 		'replaceAll': {
-			active: false
+
 		},
 		'replaceWith': {
-			active: false
+
 		},
 		'text': {
-			active: false,
 			setOn: 0
 		},
 		'toggleClass': {
-			active: false
+
 		},
 		'unwrap': {
-			active: false
+
 		},
 		'val': {
-			active: false,
 			setOn: 0
 		},
 		'wrap': {
-			active: false
+
 		},
 		'wrapAll': {
-			active: false
+
 		},
 		'wrapInner': {
-			active: false
+
 		}
 	};
 
@@ -162,64 +155,160 @@ var Manipulation = function () {
 	}
 };
 
+/**
+ * Private method that handles the call to the jquery method, checks for changes and
+ * fires events to listeners.
+ * @param context
+ * @param method
+ * @param args
+ * @returns {*}
+ * @private
+ */
 Manipulation.prototype._manipulate = function (context, method, args) {
-	var methodOps = this._manipulationMethods[method],
+	var rootElem = $(context),
+		methodOps,
 		getterArgs,
 		currentVal,
 		resultVal,
 		newVal,
-		rootElem = $(context),
-		informIndex,
-		inform;
+		currentValObj,
+		newValObj,
+		elemTrackText,
+		elemTrack,
+		elemTrackOptionsText,
+		optionsArr,
+		options,
+		changed,
+		objKey,
+		objChange = false,
+		setter = false,
+		process = false,
+		i;
 
-	// Check if a setter argument was passed
-	if (methodOps.setOn !== undefined) {
-		if (args[methodOps.setOn]) {
-			// Setter argument passed
-			getterArgs = Array.prototype.slice.call(args, 0, methodOps.setOn);
-			currentVal = this._manipulationCopies[method].apply(context, getterArgs);
+	elemTrackText = this._manipulationCopies.attr.apply(rootElem, ['data-track']);
+	if (elemTrackText) {
+		elemTrack = elemTrackText.split(',');
 
-			// Now call the setter
-			resultVal = this._manipulationCopies[method].apply(context, args);
+		// Check that this element should be tracked
+		if (elemTrack.length) {
+			// Get the method options data
+			methodOps = this._manipulationMethods[method];
 
-			// Now call the getter again and record the new value
-			newVal = this._manipulationCopies[method].apply(context, getterArgs);
-		} else {
-			// Check if the method supports object-based setting
-			if (methodOps.setViaObj) {
-				// Check if args[0] exists and is an object
-				if (args[0] && typeof args[0] === 'object') {
-					// A setter object was passed so loop it
+			// Check if the method is one we should track
+			if (elemTrack.indexOf('all') > -1 || elemTrack.indexOf(method) > -1) {
+				process = true;
+				changed = [];
 
+				// Check for tracking options
+				elemTrackOptionsText = this._manipulationCopies.attr.apply(rootElem, ['data-track-options']);
+				if (elemTrackOptionsText) {
+					options = {};
+					optionsArr = elemTrackOptionsText.split(',');
+
+					for (i = 0; i < optionsArr.length; i++) {
+						options[optionsArr[i]] = true;
+					}
+				} else {
+					options = {};
+				}
+			}
+		}
+	}
+
+	if (process) {
+		// Check if a setter argument was passed
+		if (methodOps.setOn !== undefined) {
+			if (args[methodOps.setOn]) {
+				setter = true;
+
+				// Setter argument passed
+				getterArgs = Array.prototype.slice.call(args, 0, methodOps.setOn);
+				currentVal = this._manipulationCopies[method].apply(context, getterArgs);
+
+				// Now call the setter
+				resultVal = this._manipulationCopies[method].apply(context, args);
+
+				// Now call the getter again and record the new value
+				newVal = this._manipulationCopies[method].apply(context, getterArgs);
+
+				if (currentVal !== newVal) {
+					if (options['diff']) {
+						if (methodOps.setOn === 0) {
+							// The setter for this method is on argument zero so pass the method name as the
+							// item that has changes e.g. "html" for the .html('<div>Moo</div>') call
+							changed.push({
+								method: method,
+								oldContent: currentVal,
+								newContent: newVal
+							});
+						} else {
+							// Add the argument value as the change
+							changed.push({
+								method: method,
+								param: args[methodOps.setOn],
+								oldContent: currentVal,
+								newContent: newVal
+							});
+						}
+					}
+
+					objChange = true;
 				}
 			} else {
-				// No set via obj support, this call is a getter
-				return this._manipulationCopies[method].apply(context, args);
-			}
-		}
+				// Check if the method supports object-based setting
+				if (methodOps.setViaObj) {
+					// Check if args[0] exists and is an object
+					if (args[0] && typeof args[0] === 'object') {
+						setter = true;
 
-		// Check if we have a value change
-		if (currentVal !== newVal) {
-			// Loop the inform listeners to see if any of their selectors are a parent of the affected element
-			for (informIndex = 0; informIndex < this._inform.length; informIndex++) {
-				inform = this._inform[informIndex];
+						// A setter object was passed so loop it
+						currentValObj = {};
+						newValObj = {};
 
-				if (rootElem.parents(inform).length) {
-					console.log('CHANGED via ' + method, getterArgs, currentVal, newVal);
+						// Get the existing values
+						for (objKey in args[0]) {
+							if (args[0].hasOwnProperty(objKey)) {
+								currentValObj[objKey] = this._manipulationCopies[method].apply(context, [objKey]);
+							}
+						}
+
+						// Now call the setter
+						resultVal = this._manipulationCopies[method].apply(context, args);
+
+						// Now get the new values
+						for (objKey in args[0]) {
+							if (args[0].hasOwnProperty(objKey)) {
+								newValObj[objKey] = this._manipulationCopies[method].apply(context, [objKey]);
+								if (newValObj[objKey] !== currentValObj[objKey]) {
+									if (options['diff']) {
+										changed.push({
+											method: method,
+											param: objKey,
+											oldContent: currentValObj[objKey],
+											newContent: newValObj[objKey]
+										});
+									}
+
+									objChange = true;
+								}
+							}
+						}
+					}
 				}
 			}
+
+			// Check if we have a value change
+			if (objChange) {
+				// Loop the inform listeners to see if any of their selectors are a parent of the affected element
+				rootElem.trigger('change', [changed]);
+			}
 		}
-	} else {
+	}
+
+	// If we aren't setting anything, just pass through straight to jQuery
+	if (!process || !setter) {
 		return this._manipulationCopies[method].apply(context, args);
 	}
 
 	return resultVal;
-};
-
-Manipulation.prototype.escapeSelector = function (selector) {
-	return selector.replace(/([ #;?%&,.+*~\':"!^$[\]()=>|\/@])/g, '\\$1');
-};
-
-Manipulation.prototype.inform = function (selectorString, types) {
-	this._inform.push(selectorString);
 };
