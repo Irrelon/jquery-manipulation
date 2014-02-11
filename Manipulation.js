@@ -28,10 +28,11 @@
 	 Version 1.0.0:
 		First commit
  */
-var Manipulation = function () {
+var Manipulation = function (watchMethods) {
 	var self = this,
 		arrIndex,
-		arrItem;
+		arrItem,
+		watchMethodArr = [];
 
 	this._manipulationCopies = {};
 	this._manipulationMethods = {
@@ -127,6 +128,10 @@ var Manipulation = function () {
 		}
 	};
 
+	if (watchMethods !== undefined) {
+		watchMethodArr = watchMethods.split(',');
+	}
+
 	// Store existing manipulation methods so we can fire events
 	// when parts of the DOM are changed
 	for (arrIndex in this._manipulationMethods) {
@@ -136,20 +141,24 @@ var Manipulation = function () {
 			// Store copy of original method
 			this._manipulationCopies[arrIndex] = $.fn[arrIndex];
 
-			// Now override the existing method with our own
-			if (typeof(this['_' + arrIndex]) === 'function ') {
-				$.fn[arrIndex] = function (methodName) {
-					return function () {
-						return self['_' + methodName](this, methodName, arguments);
-					};
-				}(arrIndex);
-			} else {
-				// Use the generic manipulate method
-				$.fn[arrIndex] = function (methodName) {
-					return function () {
-						return self._manipulate(this, methodName, arguments);
-					};
-				}(arrIndex);
+			// Check if we should be hooking this method
+			if (watchMethodArr.length === 0 || watchMethodArr.indexOf(methodName) > -1) {
+				// Now override the existing method with our own
+				if (typeof(this['_' + arrIndex]) === 'function ') {
+					$.fn[arrIndex] = function (methodName) {
+						return function () {
+							return self['_' + methodName](this, methodName, arguments);
+						};
+					}(arrIndex);
+				} else {
+					// Use the generic manipulate method
+					$.fn[arrIndex] = function (methodName) {
+						return function () {
+							return self._manipulate(this, methodName, arguments);
+						};
+					}(arrIndex);
+
+				}
 			}
 		}
 	}
